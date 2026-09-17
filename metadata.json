@@ -1,0 +1,6 @@
+{
+  "name": "2D Doodle Jump",
+  "description": "Trò chơi 2D Doodle Jump với AI bot đối thủ và hệ thống xếp hạng trực tiếp",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

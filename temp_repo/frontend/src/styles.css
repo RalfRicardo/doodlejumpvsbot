@@ -1,0 +1,14 @@
+:root {
+  font-family: Arial, sans-serif;
+  color: #222;
+  background: #f5f5f5;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 672px; margin: 32px auto; padding: 0 16px; text-align: center; }
+h1 { margin: 0 0 16px; font-size: 26px; }
+canvas { display: block; width: 100%; height: auto; border: 1px solid #bbb; border-radius: 4px; }
+.caption { margin: 12px 0 0; color: #666; font-size: 14px; }
+button { padding: 8px 16px; font: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid #43765c; outline-offset: 3px; }

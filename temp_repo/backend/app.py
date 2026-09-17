@@ -1,0 +1,41 @@
+from pathlib import Path
+
+import click
+from flask import Flask, jsonify
+from werkzeug.exceptions import HTTPException
+
+from .db import init_db
+from .routes.config import config_api
+from .routes.runs import runs_api
+
+
+def create_app(test_config=None):
+    app = Flask(__name__, instance_path=str(Path(__file__).parent / "instance"))
+    app.config["DATABASE"] = str(Path(app.instance_path) / "game.db")
+    if test_config:
+        app.config.update(test_config)
+    app.register_blueprint(config_api)
+    app.register_blueprint(runs_api)
+
+    @app.errorhandler(HTTPException)
+    def http_error(error):
+        response = error.get_response()
+        response.data = app.json.dumps({"error": {
+            "code": error.name.lower().replace(" ", "_"),
+            "message": error.description,
+            "details": {},
+        }})
+        response.content_type = "application/json"
+        return response
+
+    @app.errorhandler(500)
+    def server_error(error):
+        return jsonify(error={"code": "server_error", "message": "Backend gặp lỗi. Xem terminal Flask.", "details": {}}), 500
+
+    @app.cli.command("init-db")
+    def init_db_command():
+        """Tạo bảng còn thiếu; không xóa dữ liệu hiện có."""
+        init_db(app.config["DATABASE"])
+        click.echo("Database ready (existing data preserved).")
+
+    return app
