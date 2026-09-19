@@ -1,28 +1,38 @@
+// src/App.tsx
+// GIAO DIỆN CHÍNH & VỎ BỌC REACT CHO TRÒ CHƠI 2D DOODLE JUMP
+
 import React, { useEffect, useRef, useState } from 'react';
-import { createGame } from '../temp_repo/frontend/src/game/engine.js';
-import { SCREEN_WIDTH, SCREEN_HEIGHT } from '../temp_repo/frontend/src/game/index.js';
-import HUD from '../temp_repo/frontend/src/components/HUD.jsx';
-import { RotateCcw, Gamepad2, Maximize2 } from 'lucide-react';
+import { createGame } from './game/engine.js';
+import { SCREEN_WIDTH, SCREEN_HEIGHT } from './game/index.js';
+import { RotateCcw, Maximize2, Minimize2, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gameRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const [sizeMode, setSizeMode] = useState<'fullscreen' | 'large' | 'medium' | 'compact'>('fullscreen');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [gameState, setGameState] = useState<{
     elapsedMs: number;
     phase: string;
     isGameOver: boolean;
+    isWin: boolean;
   }>({
     elapsedMs: 0,
     phase: 'running',
     isGameOver: false,
+    isWin: false,
   });
 
   const [gameKey, setGameKey] = useState(0);
 
+  // ===========================================================================
+  // 1. KHỞI TẠO GAME ENGINE VÀ ĐỒNG BỘ TRẠNG THÁI
+  // ===========================================================================
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      return;
+    }
 
     const game = createGame(canvasRef.current, {
       bots: [
@@ -39,10 +49,11 @@ export default function App() {
         setGameState({
           elapsedMs: game.state.elapsedMs || 0,
           phase: game.state.phase || 'running',
-          isGameOver: !!game.state.isGameOver,
+          isGameOver: Boolean(game.state.isGameOver),
+          isWin: Boolean(game.state.isWin),
         });
       }
-    }, 80);
+    }, 60);
 
     return () => {
       clearInterval(interval);
@@ -50,101 +61,192 @@ export default function App() {
     };
   }, [gameKey]);
 
+  // ===========================================================================
+  // 2. LẮNG NGHE SỰ KIỆN TOÀN MÀN HÌNH CỦA TRÌNH DUYỆT
+  // ===========================================================================
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Bật/tắt chế độ toàn màn hình trình duyệt (Native Fullscreen)
+  const toggleBrowserFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        if (containerRef.current?.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        } else if ((document.documentElement as any).webkitRequestFullscreen) {
+          await (document.documentElement as any).webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('Không thể chuyển đổi toàn màn hình:', err);
+    }
+  };
+
   const handleRestart = () => {
     if (gameRef.current?.restart) {
       gameRef.current.restart();
     } else {
-      setGameKey(k => k + 1);
+      setGameKey((prev) => prev + 1);
     }
   };
 
-  // Tính toán kích thước tối đa để game to gần kín màn hình mà không bị tràn/cuộn
-  const sizeClass = {
-    fullscreen: 'max-w-[min(98vw,calc((100vh-140px)*960/540))]',
-    large: 'max-w-[1100px]',
-    medium: 'max-w-[880px]',
-    compact: 'max-w-[680px]',
-  }[sizeMode];
+  // Hỗ trợ cảm ứng hoặc chuột bấm nút điều khiển trái / phải
+  const triggerKey = (key: 'ArrowLeft' | 'ArrowRight', isDown: boolean) => {
+    const event = new KeyboardEvent(isDown ? 'keydown' : 'keyup', {
+      key: key,
+      code: key,
+      bubbles: true,
+    });
+    window.dispatchEvent(event);
+  };
+
+  const seconds = (gameState.elapsedMs / 1000).toFixed(1);
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0] flex flex-col items-center justify-center p-2 sm:p-3 text-stone-900 font-sans select-none">
-      <header className="mb-2 text-center w-full max-w-5xl flex flex-wrap items-center justify-between gap-2 px-2">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#17352e] flex items-center gap-1.5">
-            <span>🐸</span> 2D Doodle Jump
-          </h1>
-          <span className="text-xs text-stone-500 hidden md:inline">
-            • Phím <kbd className="px-1.5 py-0.5 bg-stone-200 rounded border border-stone-300 text-[11px] font-mono font-bold">A/D</kbd> hoặc <kbd className="px-1.5 py-0.5 bg-stone-200 rounded border border-stone-300 text-[11px] font-mono font-bold">← / →</kbd>
-          </span>
+    <div
+      ref={containerRef}
+      id="game-fullscreen-container"
+      className="fixed inset-0 w-screen h-screen bg-[#11241f] overflow-hidden select-none flex flex-col justify-between"
+    >
+      {/* THANH ĐIỀU KHIỂN NỔI PHÍA TRÊN (TOP FLOATING HUD & CONTROLS) */}
+      <header className="z-30 w-full px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between gap-2 bg-gradient-to-b from-[#0b1714]/90 via-[#0b1714]/60 to-transparent backdrop-blur-[2px]">
+        {/* Tiêu đề và Thời gian */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 bg-[#17352e]/80 border border-[#2e574b] px-2.5 py-1 rounded-lg text-white shadow-sm">
+            <span className="text-base sm:text-lg">🐸</span>
+            <span className="font-extrabold text-xs sm:text-sm tracking-tight text-[#e8ad48]">
+              2D Doodle Jump
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-black/40 border border-white/10 px-2.5 py-1 rounded-lg text-white text-xs sm:text-sm font-mono">
+            <span className="text-stone-400">⏱️</span>
+            <strong className="text-amber-400">{seconds}s</strong>
+          </div>
+
+          <div className="hidden md:flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1 rounded-lg text-[11px] text-stone-300">
+            <span>Phím điều khiển:</span>
+            <kbd className="px-1 py-0.5 bg-white/10 rounded font-mono font-bold text-white text-[10px]">A / D</kbd>
+            <span>hoặc</span>
+            <kbd className="px-1 py-0.5 bg-white/10 rounded font-mono font-bold text-white text-[10px]">← / →</kbd>
+          </div>
         </div>
 
-        {/* Bộ chọn kích thước hiển thị */}
-        <div className="inline-flex items-center gap-1 bg-stone-200/80 p-0.5 rounded-lg text-xs font-medium">
-          <span className="px-1.5 text-stone-500 text-[11px] flex items-center gap-1">
-            <Maximize2 className="w-3 h-3" /> Cỡ:
-          </span>
+        {/* Nút hành động: Chơi lại & Toàn màn hình */}
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setSizeMode('fullscreen')}
-            className={`px-2.5 py-1 rounded-md transition ${sizeMode === 'fullscreen' ? 'bg-[#17352e] shadow text-white font-bold' : 'text-stone-700 hover:text-stone-900'}`}
+            onClick={handleRestart}
+            title="Chơi lại ván mới"
+            className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition shadow-md ${
+              gameState.isWin
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-900 animate-pulse ring-2 ring-amber-300'
+                : gameState.isGameOver
+                ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse ring-2 ring-rose-300'
+                : 'bg-[#2a5948] hover:bg-[#346c58] text-white active:scale-95 border border-[#3f8068]'
+            }`}
           >
-            Toàn màn hình
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>
+              {gameState.isWin
+                ? '👑 Bạn Thắng! Chơi lại'
+                : gameState.isGameOver
+                ? 'Chơi lại ngay'
+                : 'Chơi lại'}
+            </span>
           </button>
+
           <button
-            onClick={() => setSizeMode('large')}
-            className={`px-2 py-1 rounded-md transition ${sizeMode === 'large' ? 'bg-white shadow text-[#17352e] font-bold' : 'text-stone-600 hover:text-stone-900'}`}
+            onClick={toggleBrowserFullscreen}
+            title={isFullscreen ? 'Thu nhỏ cửa sổ' : 'Bật toàn màn hình'}
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-white/10 hover:bg-white/20 active:scale-95 text-white border border-white/15 transition shadow-md"
           >
-            Lớn (1100px)
-          </button>
-          <button
-            onClick={() => setSizeMode('medium')}
-            className={`px-2 py-1 rounded-md transition ${sizeMode === 'medium' ? 'bg-white shadow text-[#17352e] font-bold' : 'text-stone-600 hover:text-stone-900'}`}
-          >
-            Vừa (880px)
-          </button>
-          <button
-            onClick={() => setSizeMode('compact')}
-            className={`px-2 py-1 rounded-md transition ${sizeMode === 'compact' ? 'bg-white shadow text-[#17352e] font-bold' : 'text-stone-600 hover:text-stone-900'}`}
-          >
-            Nhỏ (680px)
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                <span className="hidden sm:inline">Thu nhỏ</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Toàn màn hình</span>
+              </>
+            )}
           </button>
         </div>
       </header>
 
-      <div className={`flex flex-col items-center justify-center w-full ${sizeClass} transition-all duration-200`}>
-        {/* Khung Canvas Trò chơi */}
-        <div className="flex flex-col items-center bg-white p-2 sm:p-3 rounded-2xl shadow-xl border border-stone-200 w-full">
-          <HUD
-            elapsedMs={gameState.elapsedMs}
-            phase={gameState.phase}
+      {/* KHUNG TRÒ CHƠI (CANVAS VIEWPORT STAGE) */}
+      <main className="relative flex-1 w-full h-full flex items-center justify-center p-1 sm:p-2 overflow-hidden">
+        <div
+          className="relative w-full h-full max-w-full max-h-full flex items-center justify-center"
+          style={{
+            aspectRatio: `${SCREEN_WIDTH} / ${SCREEN_HEIGHT}`,
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={SCREEN_WIDTH}
+            height={SCREEN_HEIGHT}
+            className="w-full h-full max-w-full max-h-full object-contain block rounded-lg sm:rounded-xl shadow-2xl border border-white/10 bg-[#edf2e9] cursor-pointer"
           />
-
-          <div
-            className="relative border-2 border-[#17352e]/20 rounded-b-xl overflow-hidden bg-[#edf2e9] w-full"
-            style={{ aspectRatio: `${SCREEN_WIDTH} / ${SCREEN_HEIGHT}` }}
-          >
-            <canvas
-              ref={canvasRef}
-              width={SCREEN_WIDTH}
-              height={SCREEN_HEIGHT}
-              className="w-full h-full block cursor-pointer"
-            />
-          </div>
-
-          {/* Thanh công cụ dưới Canvas */}
-          <div className="mt-3.5 flex items-center justify-center w-full px-1">
-            <button
-              onClick={handleRestart}
-              className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition shadow-sm ${
-                gameState.isGameOver
-                  ? 'bg-rose-600 hover:bg-rose-700 text-white animate-pulse ring-4 ring-rose-200'
-                  : 'bg-[#43765c] hover:bg-[#345c48] text-white active:scale-95'
-              }`}
-            >
-              <RotateCcw className="w-4 h-4" />
-              {gameState.isGameOver ? 'Chơi lại ngay' : 'Chơi lại'}
-            </button>
-          </div>
         </div>
+      </main>
+
+      {/* NÚT ĐIỀU KHIỂN CẢM ỨNG NỔI Ở 2 BÊN GÓC DƯỚI (TOUCH CONTROLS) */}
+      <div className="z-30 pointer-events-none absolute bottom-4 left-4 right-4 flex justify-between items-center">
+        {/* Nút sang trái */}
+        <button
+          type="button"
+          aria-label="Sang trái"
+          className="pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-black/40 hover:bg-black/60 active:bg-emerald-600/80 active:scale-90 text-white/90 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-lg transition select-none touch-none"
+          onMouseDown={() => triggerKey('ArrowLeft', true)}
+          onMouseUp={() => triggerKey('ArrowLeft', false)}
+          onMouseLeave={() => triggerKey('ArrowLeft', false)}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            triggerKey('ArrowLeft', true);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            triggerKey('ArrowLeft', false);
+          }}
+        >
+          <ArrowLeft className="w-7 h-7 sm:w-8 sm:h-8" />
+        </button>
+
+        {/* Nút sang phải */}
+        <button
+          type="button"
+          aria-label="Sang phải"
+          className="pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-black/40 hover:bg-black/60 active:bg-emerald-600/80 active:scale-90 text-white/90 border border-white/20 backdrop-blur-md flex items-center justify-center shadow-lg transition select-none touch-none"
+          onMouseDown={() => triggerKey('ArrowRight', true)}
+          onMouseUp={() => triggerKey('ArrowRight', false)}
+          onMouseLeave={() => triggerKey('ArrowRight', false)}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            triggerKey('ArrowRight', true);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            triggerKey('ArrowRight', false);
+          }}
+        >
+          <ArrowRight className="w-7 h-7 sm:w-8 sm:h-8" />
+        </button>
       </div>
     </div>
   );

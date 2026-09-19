@@ -1,16 +1,19 @@
 // frontend/src/game/input.js
-// MODULE BẮT SỰ KIỆN PHÍM BẤM (INPUT HANDLING)
+// MODULE BẮT SỰ KIỆN BÀN PHÍM (KEYBOARD INPUT HANDLING)
 
 export function createInput(target = window) {
   const activeKeys = new Set();
-  const state = { left: false, right: false };
+  const state = { 
+    left: false, 
+    right: false 
+  };
 
   const LEFT_KEYS = ['KeyA', 'ArrowLeft', 'a', 'A'];
   const RIGHT_KEYS = ['KeyD', 'ArrowRight', 'd', 'D'];
 
   function updateState() {
-    state.left = LEFT_KEYS.some((k) => activeKeys.has(k));
-    state.right = RIGHT_KEYS.some((k) => activeKeys.has(k));
+    state.left = LEFT_KEYS.some((key) => activeKeys.has(key));
+    state.right = RIGHT_KEYS.some((key) => activeKeys.has(key));
   }
 
   function handleKeyDown(event) {
@@ -25,7 +28,7 @@ export function createInput(target = window) {
     updateState();
   }
 
-  // Khi người chơi Alt+Tab hoặc click ra ngoài cửa sổ: xóa trạng thái giữ phím
+  // Khi người chơi chuyển tab hoặc click ra ngoài cửa sổ: xóa trạng thái giữ phím
   function handleBlur() {
     activeKeys.clear();
     state.left = false;

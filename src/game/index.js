@@ -1,7 +1,6 @@
 // frontend/src/game/index.js
-// TRUNG TÂM CẤU HÌNH HẰNG SỐ VẬT LÝ & GAMEPLAY
-// 👉 TẤT CẢ CÁC THÔNG SỐ ĐƯỢC QUẢN LÝ TẬP TRUNG TẠI ĐÂY
-// 👉 KHI CHỈNH SỬA Ở ĐÂY, TOÀN BỘ GAME (BOTS, WORLD, PHYSICS, RENDER...) SẼ TỰ ĐỘNG THAY ĐỔI THEO
+// TRUNG TÂM CẤU HÌNH HẰNG SỐ VẬT LÝ & THIẾT LẬP GAMEPLAY
+// Quản lý tập trung toàn bộ thông số cho Engine, Bots, World, Physics và Render
 
 // =============================================================================
 // 1. CẤU HÌNH MÀN HÌNH & GIAO DIỆN (SCREEN CONFIGURATION)
@@ -17,23 +16,29 @@ export const GRID_SIZE = 32;             // Kích thước ô vuông sổ kẻ c
 
 // =============================================================================
 // 2. HỆ VẬT LÝ & CHUYỂN ĐỘNG (PHYSICS & KINEMATICS)
+// Hệ tọa độ: Điểm gốc (0,0) là vị trí ban đầu của Player.
+// Trục Y hướng lên trên: vy > 0 là bay lên, vy < 0 là rơi xuống.
 // =============================================================================
-export const GRAVITY = 850;              // Trọng lực rơi tự do (px/s^2)
-export const JUMP_VELOCITY = 560;        // Vận tốc nảy chuẩn khi dẫm lên bệ (px/s)
+export const GRAVITY = 850;              // Gia tốc trọng lực kéo xuống (px/s^2)
+export const JUMP_VELOCITY = 560;        // Vận tốc nảy lên (bay lên, px/s)
 export const SPRING_JUMP_VELOCITY = 850; // Vận tốc nảy cực đại khi dẫm lò xo (px/s)
 export const ACCE = 1800;                // Gia tốc tăng tốc di chuyển ngang (px/s^2)
 export const MASATTRUOT = 2000;          // Ma sát trượt hãm phanh khi nhả phím (px/s^2)
 export const MAX_VX = 420;               // Vận tốc ngang tối đa của người chơi (px/s)
-export const MAX_VY = 950;               // Vận tốc rơi tối đa (px/s)
+export const MAX_VY = 950;               // Vận tốc rơi tối đa (px/s, vy không nhỏ hơn -MAX_VY)
+
+// Tọa độ vẽ điểm gốc (0,0) trên Canvas màn hình
+export const ORIGIN_SCREEN_X = 480;      // Tâm màn hình ngang (SCREEN_WIDTH / 2)
+export const ORIGIN_SCREEN_Y = 460;      // Độ cao bệ xuất phát trên Canvas (px)
 
 // =============================================================================
-// 3. THÔNG SỐ NGƯỜI CHƠI (PLAYER CONFIGURATION)
+// 3. THÔNG SỐ NHÂN VẬT NGƯỜI CHƠI (PLAYER CONFIGURATION)
 // =============================================================================
 export const PLAYER_WIDTH = 46;          // Chiều rộng nhân vật người chơi (px)
 export const PLAYER_HEIGHT = 46;         // Chiều cao nhân vật người chơi (px)
 
 // =============================================================================
-// 4. THÔNG SỐ BỆ ĐỠ & THUẬT TOÁN SINH BỆ (PLATFORM CONFIGURATION)
+// 4. THÔNG SỐ BỆ ĐỠ & QUY TẮC SINH BỆ (PLATFORM CONFIGURATION)
 // =============================================================================
 export const P_HEIGHT = 14;              // Chiều dày bệ đỡ (px)
 export const P_WIDTH_MIN = 64;           // Chiều rộng bệ tối thiểu (px)
@@ -50,14 +55,20 @@ export const PLATFORM_START_WIDTH = 180; // Chiều rộng bệ xuất phát ở
 export const PLATFORM_START_Y = 460;     // Tọa độ Y bệ xuất phát ở đáy (px)
 
 // Cơ chế bệ vỡ
-export const BREAKABLE_COUNTDOWN = 1.2;  // Thời gian đếm ngược sau khi dẫm vào bệ vỡ (1.2 giây theo yêu cầu)
+export const BREAKABLE_COUNTDOWN = 1.2;  // Thời gian đếm ngược sau khi dẫm vào bệ vỡ (giây)
 export const BREAKABLE_DELAY = 200;      // Thời gian trễ kích hoạt
 export const DISAPPEAR_DELAY = 800;      // Thời gian mảnh vỡ tan biến hoàn toàn (ms)
 export const PLATFORM_CLEANUP_OFFSET = 50; // Khoảng đệm dọn dẹp bệ trôi khỏi đáy màn hình (px)
-export const OUTPACED_DISTANCE = 380;    // LUẬT BỎ XA (HARDCORE): Bị người chơi bỏ xa >= 380px là bị loại ngay (px)
 
 // =============================================================================
-// 5. THÔNG SỐ VÀ CẤU HÌNH 4 CÁ TÍNH BOT (BOT CONFIGURATION)
+// 5. THÔNG SỐ DUNG NHAM ĐUỔI THEO (LAVA CONFIGURATION)
+// =============================================================================
+export const LAVA_INITIAL_Y = -180;      // Tọa độ Y xuất phát của dung nham (dưới bệ xuất phát 180px)
+export const LAVA_SPEED = 135;           // Tốc độ dâng lên của dung nham (px/s)
+export const LAVA_CLEANUP_OFFSET = 20;   // Khoảng đệm để xóa bệ sau khi dung nham dâng qua (px)
+
+// =============================================================================
+// 6. THÔNG SỐ VÀ CẤU HÌNH 4 CÁ TÍNH BOT (BOT CONFIGURATION)
 // =============================================================================
 export const BOT_WIDTH = 44;             // Chiều rộng Bot (px)
 export const BOT_HEIGHT = 44;            // Chiều cao Bot (px)
@@ -71,9 +82,9 @@ export const BOT_COLORS = {
   PERFECT: '#e74c3c',     // Đỏ
 };
 
-// Hồ sơ chi tiết 4 cá tính Bot (Nhạy bén, leo tốt cùng người chơi, có cơ chế cân bằng bắt kịp)
+// Hồ sơ chi tiết 4 cá tính Bot
 export const BOT_PROFILES = {
-  // THẦY SƠN (NOVICE): Tốc độ ổn định (72%), chủ yếu nhảy từng bậc gần
+  // THẦY SƠN (NOVICE): Tốc độ ổn định (72%), chủ yếu nhảy từng bậc gần, 1.0% sơ suất bệ vỡ
   NOVICE: {
     name: 'Thầy Sơn',
     speedMultiplier: 0.72,
@@ -82,6 +93,7 @@ export const BOT_PROFILES = {
     aimOffset: 16,
     strategy: 'nearest_wide',
     skipJumpChance: 0.0,
+    breakableMistakeChance: 0.010,
   },
 
   // THẦY VIỆT (STANDARD): Nhanh nhẹn (80%), thỉnh thoảng ngập ngừng
@@ -93,9 +105,10 @@ export const BOT_PROFILES = {
     aimOffset: 10,
     strategy: 'safe_balanced',
     skipJumpChance: 0.05,
+    breakableMistakeChance: 0.009,
   },
 
-  // THẦY HIỆP (SPEEDRUNNER): Rất nhanh (90%) và quyết đoán, chọn bệ cao nhưng có tính toán
+  // THẦY HIỆP (SPEEDRUNNER): Rất nhanh (90%) và quyết đoán, chọn bệ cao
   SPEEDRUNNER: {
     name: 'Thầy Hiệp',
     speedMultiplier: 0.90,
@@ -104,9 +117,10 @@ export const BOT_PROFILES = {
     aimOffset: 5,
     strategy: 'highest_aggressive',
     skipJumpChance: 0.12,
+    breakableMistakeChance: 0.008,
   },
 
-  // THẦY NAM (PERFECT): Bay cực chuẩn, tốc độ cao (86%), né tranh chấp bệ
+  // THẦY NAM (PERFECT): Chuẩn xác, tốc độ cao (86%), né tranh chấp bệ
   PERFECT: {
     name: 'Thầy Nam',
     speedMultiplier: 0.86,
@@ -115,5 +129,6 @@ export const BOT_PROFILES = {
     aimOffset: 2,
     strategy: 'optimal_uncontested',
     skipJumpChance: 0.10,
+    breakableMistakeChance: 0.006,
   },
 };

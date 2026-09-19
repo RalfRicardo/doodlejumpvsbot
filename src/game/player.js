@@ -1,14 +1,14 @@
 // frontend/src/game/player.js
+// MODULE QUẢN LÝ NHÂN VẬT NGƯỜI CHƠI (PLAYER MODULE)
+
 import { getPlayerSprite } from './render.js';
 import {
-  SCREEN_WIDTH,
   PLAYER_WIDTH,
   PLAYER_HEIGHT,
   MAX_VX,
   ACCE,
   MASATTRUOT,
   JUMP_VELOCITY,
-  PLATFORM_START_Y,
 } from './index.js';
 
 // =============================================================================
@@ -17,16 +17,18 @@ import {
 export function createPlayer() {
   const width = PLAYER_WIDTH;
   const height = PLAYER_HEIGHT;
-  const startX = Math.floor(SCREEN_WIDTH / 2 - width / 2);
-  const startY = PLATFORM_START_Y - height;
+
+  // Điểm gốc (0, 0): x = 0 (tâm), y = 0 (mặt bệ xuất phát)
+  const startX = 0;
+  const startY = 0;
 
   return {
     x: startX,
     y: startY,
-    width,
-    height,
+    width: width,
+    height: height,
     vx: 0,
-    vy: -JUMP_VELOCITY, // Bật nhảy ngay lập tức khi bắt đầu game với JUMP_VELOCITY từ index.js
+    vy: JUMP_VELOCITY, // Xuất phát bật nhảy dương bay lên ngay lập tức!
     direction: 'right',
     image: getPlayerSprite('right'),
     progress: 0,
@@ -35,17 +37,18 @@ export function createPlayer() {
 }
 
 // =============================================================================
-// 2. CẬP NHẬT DI CHUYỂN NGANG (UPDATE HORIZONTAL)
-// =============================================================================
+// 2. CẬP NHẬT DI CHUYỂN NGANG (UPDATE HORIZONTAL MOVEMENT)
 // Sử dụng hệ thống quán tính:
 // - Nhấn phím: gia tốc ACCE
 // - Đổi hướng: gia tốc ACCE + ma sát MASATTRUOT để bẻ lái đầm tay
 // - Thả phím: ma sát MASATTRUOT hãm tốc mượt mà về 0
+// =============================================================================
 export function updateHorizontal(player, direction, dt) {
   const maxVx = MAX_VX;
   const acce = ACCE;
   const friction = MASATTRUOT;
 
+  // Di chuyển sang TRÁI
   if (direction < 0) {
     player.direction = 'left';
     player.image = getPlayerSprite('left');
@@ -56,7 +59,9 @@ export function updateHorizontal(player, direction, dt) {
     } else {
       player.vx = Math.max(-maxVx, player.vx - acce * dt);
     }
-  } else if (direction > 0) {
+  } 
+  // Di chuyển sang PHẢI
+  else if (direction > 0) {
     player.direction = 'right';
     player.image = getPlayerSprite('right');
 
@@ -66,8 +71,9 @@ export function updateHorizontal(player, direction, dt) {
     } else {
       player.vx = Math.min(maxVx, player.vx + acce * dt);
     }
-  } else {
-    // Nhả phím: ma sát trượt hãm trớn mượt mà về 0
+  } 
+  // NHẢ PHÍM: ma sát trượt hãm trớn mượt mà về 0
+  else {
     if (player.vx > 0) {
       player.vx = Math.max(0, player.vx - friction * dt);
     } else if (player.vx < 0) {
